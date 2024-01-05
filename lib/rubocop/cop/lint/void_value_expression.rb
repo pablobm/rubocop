@@ -43,27 +43,33 @@ module RuboCop
       #   good_foo_method(args)
       #
       class VoidValueExpression < Base
-        # TODO: Implement the cop in here.
-        #
-        # In many cases, you can use a node matcher for matching node pattern.
-        # See https://github.com/rubocop/rubocop-ast/blob/master/lib/rubocop/ast/node_pattern.rb
-        #
-        # For example
-        MSG = 'Use `#good_method` instead of `#bad_method`.'
+        def on_next(node)
+          on_void_node(node)
+        end
 
-        # TODO: Don't call `on_send` unless the method name is in this list
-        # If you don't need `on_send` in the cop you created, remove it.
-        RESTRICT_ON_SEND = %i[bad_method].freeze
+        def on_break(node)
+          on_void_node(node)
+        end
 
-        # @!method bad_method?(node)
-        def_node_matcher :bad_method?, <<~PATTERN
-          (send nil? :bad_method ...)
-        PATTERN
+        def on_return(node)
+          on_void_node(node)
+        end
 
-        def on_send(node)
-          return unless bad_method?(node)
+        private
 
-          add_offense(node)
+        def on_void_node(void_node)
+          parent_node = void_node.ancestors
+            .take_while { |n| !%i(def defs).include?(n.type) }
+            .reject { |n| %i(kwbegin if while begin).include?(n.type) }
+            .first
+
+          return unless parent_node
+          return unless parent_node.value_used? || parent_node.type == :send
+
+          add_offense(
+            void_node.loc.keyword,
+            message: "This #{void_node.type} invalidates the expression."
+          )
         end
       end
     end
