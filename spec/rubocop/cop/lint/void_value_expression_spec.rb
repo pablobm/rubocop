@@ -59,6 +59,18 @@ RSpec.describe RuboCop::Cop::Lint::VoidValueExpression, :config do
     RUBY
   end
 
+  pending 'does not register an offense when a return appears in a metaprogrammed method' do
+    expect_no_offenses(<<~RUBY)
+      def metaprogrammed_module
+        my_module = Module.new {
+          define_method method_name do
+            return 1
+          end
+        }
+      end
+    RUBY
+  end
+
   it 'does not register an offense when a return appears in an "if" guard clause' do
     expect_no_offenses(<<~RUBY)
       def if_guard
