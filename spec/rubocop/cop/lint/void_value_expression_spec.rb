@@ -49,10 +49,30 @@ RSpec.describe RuboCop::Cop::Lint::VoidValueExpression, :config do
     RUBY
   end
 
+  it 'does not register an offense when a return appears in a block' do
+    expect_no_offenses(<<~RUBY)
+      def return_in_block
+        items.each do |item|
+          return item if item.returnable?
+        end
+      end
+    RUBY
+  end
+
   it 'does not register an offense when a return appears in an "if" guard clause' do
     expect_no_offenses(<<~RUBY)
       def if_guard
         return if foo
+      end
+    RUBY
+  end
+
+  it 'does not register an offense when a return appears in an "if" guard clause' do
+    expect_no_offenses(<<~RUBY)
+      def if_guard_with_rescue
+        return if foo
+      rescue SomeException
+        handle_issue
       end
     RUBY
   end
@@ -188,6 +208,28 @@ RSpec.describe RuboCop::Cop::Lint::VoidValueExpression, :config do
     RUBY
   end
 
+  it 'does not register an offense when a next is used correctly' do
+    expect_no_offenses(<<~RUBY)
+      def correct_next
+        items.each do |item|
+          next if item.skippable?
+          do_something(item)
+        end
+      end
+    RUBY
+  end
+
+  it 'registers an offense when a return is incorrectly used within a block' do
+    expect_offense(<<~RUBY)
+      def bad_return_in_block
+        items.each do |item|
+          return do_something(item) and 1
+          ^^^^^^ This return invalidates the expression.
+        end
+      end
+    RUBY
+  end
+
   it 'registers an offense when a break appears in an expression' do
     expect_offense(<<~RUBY)
       def expression_with_break
@@ -209,6 +251,17 @@ RSpec.describe RuboCop::Cop::Lint::VoidValueExpression, :config do
           n += 1
           1 + break
               ^^^^^ This break invalidates the expression.
+        end
+      end
+    RUBY
+  end
+
+  it 'does not register an offense when a break is used correctly' do
+    expect_no_offenses(<<~RUBY)
+      def correct_break
+        items.each do |item|
+          do_something(item)
+          break if item.last?
         end
       end
     RUBY

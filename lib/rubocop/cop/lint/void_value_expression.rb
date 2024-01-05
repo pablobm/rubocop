@@ -44,11 +44,11 @@ module RuboCop
       #
       class VoidValueExpression < Base
         def on_next(node)
-          on_void_node(node)
+          on_void_node(node, block_limit: true)
         end
 
         def on_break(node)
-          on_void_node(node)
+          on_void_node(node, block_limit: true)
         end
 
         def on_return(node)
@@ -57,12 +57,21 @@ module RuboCop
 
         private
 
-        def on_void_node(void_node)
+        def on_void_node(void_node, block_limit: false)
+          pp void_node.ancestors.last
+          pp [void_node, *void_node.ancestors].map { |n| [n.type, :value_used?, n.value_used?] }
+
+          limits = %i(def defs)
+          if block_limit
+            limits << :block
+          end
+
           parent_node = void_node.ancestors
-            .take_while { |n| !%i(def defs).include?(n.type) }
-            .reject { |n| %i(kwbegin if while begin).include?(n.type) }
+            .take_while { |n| !limits.include?(n.type) }
+            .reject { |n| %i(kwbegin if while begin rescue block).include?(n.type) }
             .first
 
+          #pp parent_node
           return unless parent_node
           return unless parent_node.value_used? || parent_node.type == :send
 
