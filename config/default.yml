@@ -2548,7 +2548,7 @@ Lint/Void:
 
 Lint/VoidValueExpression:
   Description: 'TODO: Write a description of the cop.'
-  Enabled: pending
+  Enabled: true
   VersionAdded: '<<next>>'
 
 Metrics/AbcSize:
