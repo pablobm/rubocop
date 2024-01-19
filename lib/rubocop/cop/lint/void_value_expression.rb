@@ -73,11 +73,11 @@ module RuboCop
 
           #pp parent_node
           return unless parent_node
-          return unless parent_node.value_used? || parent_node.type == :send
+          return unless parent_node.value_used? || %i{lvasgn send}.include?(parent_node.type)
 
           add_offense(
             void_node.loc.keyword,
-            message: "This #{void_node.type} invalidates the expression."
+            message: "This #{void_node.type} introduces a void value."
           )
         end
       end

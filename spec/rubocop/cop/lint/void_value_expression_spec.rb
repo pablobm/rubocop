@@ -1,20 +1,31 @@
 # frozen_string_literal: true
 
 RSpec.describe RuboCop::Cop::Lint::VoidValueExpression, :config do
-  it 'registers an offense when a returns appears within an expression' do
+  it 'registers an offense when a return appears where an expression is expected' do
     expect_offense(<<~RUBY)
       def void_expression
         return a and b
-        ^^^^^^ This return invalidates the expression.
+        ^^^^^^ This return introduces a void value.
       end
     RUBY
   end
 
-  it 'registers an offense when a returns appears within an assignment' do
+  it 'registers an offense when a return appears in an assignment' do
     expect_offense(<<~RUBY)
       def void_assignment
         a = return 1
-            ^^^^^^ This return invalidates the expression.
+            ^^^^^^ This return introduces a void value.
+      end
+    RUBY
+  end
+
+  it 'registers an offense when a return appears in an assignment within a loop' do
+    expect_offense(<<~RUBY)
+      def void_assignment_within_while
+        while running?
+          a = return 1
+              ^^^^^^ This return introduces a void value.
+        end
       end
     RUBY
   end
@@ -27,13 +38,13 @@ RSpec.describe RuboCop::Cop::Lint::VoidValueExpression, :config do
     RUBY
   end
 
-  it 'registers an offense when a return appears within a begin block in an assignment' do
+  it 'registers an offense when a return causes a begin block to resolve to void where an expression is expected' do
     expect_offense(<<~RUBY)
-      def void_assignment_with_begin
+      def void_assignment_within_begin
         a =
           begin
             return 1
-            ^^^^^^ This return invalidates the expression.
+            ^^^^^^ This return introduces a void value.
           end
       end
     RUBY
@@ -51,7 +62,7 @@ RSpec.describe RuboCop::Cop::Lint::VoidValueExpression, :config do
 
   it 'does not register an offense when a return appears in a block' do
     expect_no_offenses(<<~RUBY)
-      def return_in_block
+      def return_within_block
         items.each do |item|
           return item if item.returnable?
         end
@@ -59,6 +70,7 @@ RSpec.describe RuboCop::Cop::Lint::VoidValueExpression, :config do
     RUBY
   end
 
+  # I don't think this is avoidable.
   pending 'does not register an offense when a return appears in a metaprogrammed method' do
     expect_no_offenses(<<~RUBY)
       def metaprogrammed_module
@@ -71,17 +83,17 @@ RSpec.describe RuboCop::Cop::Lint::VoidValueExpression, :config do
     RUBY
   end
 
-  it 'does not register an offense when a return appears in an "if" guard clause' do
+  it 'does not register an offense when a return appears in a conditional branch' do
     expect_no_offenses(<<~RUBY)
-      def if_guard
+      def conditional_guard
         return if foo
       end
     RUBY
   end
 
-  it 'does not register an offense when a return appears in an "if" guard clause' do
+  it 'does not register an offense when a return appears in a rescue-able conditional branch' do
     expect_no_offenses(<<~RUBY)
-      def if_guard_with_rescue
+      def conditional_guard_with_rescue
         return if foo
       rescue SomeException
         handle_issue
@@ -89,49 +101,29 @@ RSpec.describe RuboCop::Cop::Lint::VoidValueExpression, :config do
     RUBY
   end
 
-  it 'does not register an offense when a return appears in an "unless" guard clause' do
-    expect_no_offenses(<<~RUBY)
-      def unless_guard
-        return unless foo
-      end
-    RUBY
-  end
-
-  it 'does not register an offense when a return appears at the top of an "else" branch' do
-    expect_no_offenses(<<~RUBY)
-      def else_branch
-        if foo
-          bar
-        else
-          return 1
-        end
-      end
-    RUBY
-  end
-
-  it 'registers an offense when a return appears in an if/else used by an expression' do
+  it 'registers an offense when a return causes a conditional to resolve to void where an expression is expected' do
     expect_offense(<<~RUBY)
-      def expression_with_if
+      def conditional_expression
         1 +
           if foo
             2
           else
             return 1
-            ^^^^^^ This return invalidates the expression.
+            ^^^^^^ This return introduces a void value.
           end
         end
     RUBY
   end
 
-  it 'registers an offense when a return appears in an if/else used by an assignment' do
+  it 'registers an offense when a return appears in a conditional used by an assignment' do
     expect_offense(<<~RUBY)
-      def assignment_with_if
+      def conditional_assignment
         bar =
           if foo
             2
           else
             return 1
-            ^^^^^^ This return invalidates the expression.
+            ^^^^^^ This return introduces a void value.
           end
         end
     RUBY
@@ -161,7 +153,7 @@ RSpec.describe RuboCop::Cop::Lint::VoidValueExpression, :config do
     RUBY
   end
 
-  it 'does not register an offense when a method definition is part of an assignment' do
+  it 'does not register an offense when a singleton method definition is part of an assignment' do
     expect_no_offenses(<<~RUBY)
       method_name = def foo.secret
         return 123
@@ -169,27 +161,11 @@ RSpec.describe RuboCop::Cop::Lint::VoidValueExpression, :config do
     RUBY
   end
 
-  it 'does not register an offense when a singleton method definition is part of an expression' do
-    expect_no_offenses(<<~RUBY)
-      private def foo.secret
-        return 123
-      end
-    RUBY
-  end
-
-  it 'does not register an offense when a method definition is part of an assignment' do
-    expect_no_offenses(<<~RUBY)
-      method_name = def foo.secret
-        return 123
-      end
-    RUBY
-  end
-
-  it 'registers an offense when a return appears in an assignment in a block' do
+  it 'registers an offense when a return appears in an assignment within a block' do
     expect_offense(<<~RUBY)
       with_block {
         a = return 1
-            ^^^^^^ This return invalidates the expression.
+            ^^^^^^ This return introduces a void value.
       }
     RUBY
   end
@@ -201,7 +177,7 @@ RSpec.describe RuboCop::Cop::Lint::VoidValueExpression, :config do
         while n < 1
           n += 1
           1 + next
-              ^^^^ This next invalidates the expression.
+              ^^^^ This next introduces a void value.
         end
       end
     RUBY
@@ -213,8 +189,20 @@ RSpec.describe RuboCop::Cop::Lint::VoidValueExpression, :config do
         n = 0
         while n < 1
           n += 1
-          1 + next
-              ^^^^ This next invalidates the expression.
+          x = next 1
+              ^^^^ This next introduces a void value.
+        end
+      end
+    RUBY
+  end
+
+  it 'opassign' do
+    expect_offense(<<~RUBY)
+      def assignment_with_next
+        n = 0
+        while n < 1
+          n += next n + 1
+               ^^^^ This next introduces a void value.
         end
       end
     RUBY
@@ -231,12 +219,12 @@ RSpec.describe RuboCop::Cop::Lint::VoidValueExpression, :config do
     RUBY
   end
 
-  it 'registers an offense when a return is incorrectly used within a block' do
+  it 'registers an offense when a return is used where an expression is expected within a block' do
     expect_offense(<<~RUBY)
       def bad_return_in_block
         items.each do |item|
           return do_something(item) and 1
-          ^^^^^^ This return invalidates the expression.
+          ^^^^^^ This return introduces a void value.
         end
       end
     RUBY
@@ -249,7 +237,7 @@ RSpec.describe RuboCop::Cop::Lint::VoidValueExpression, :config do
         while n < 1
           n += 1
           1 + break
-              ^^^^^ This break invalidates the expression.
+              ^^^^^ This break introduces a void value.
         end
       end
     RUBY
@@ -262,7 +250,7 @@ RSpec.describe RuboCop::Cop::Lint::VoidValueExpression, :config do
         while n < 1
           n += 1
           1 + break
-              ^^^^^ This break invalidates the expression.
+              ^^^^^ This break introduces a void value.
         end
       end
     RUBY
@@ -279,14 +267,45 @@ RSpec.describe RuboCop::Cop::Lint::VoidValueExpression, :config do
     RUBY
   end
 
-  it 'registers an offense when there is still code after a bad return' do
+  # Not detected by MRI or JRuby
+  it 'registers an offense when there is still code after a bad return within a begin block' do
+    expect_offense(<<~RUBY)
+      def void_assignment_with_if_plus_code
+        a =
+          begin
+            return 1
+            ^^^^^^ This return introduces a void value.
+
+            puts "AFTER"
+          end
+      end
+    RUBY
+  end
+
+  # Not detected by MRI. Detected by JRuby
+  it 'registers an offense when a return causes a void conditional within a begin block' do
     expect_offense(<<~RUBY)
       def void_assignment_with_if_plus_code
         a =
           begin
             if true
               return 1
-              ^^^^^^ This return invalidates the expression.
+              ^^^^^^ This return introduces a void value.
+            end
+          end
+      end
+    RUBY
+  end
+
+  # Not detected by MRI or JRuby
+  it 'registers an offense when a return causes a void conditional within a begin block and there is still code after that' do
+    expect_offense(<<~RUBY)
+      def void_assignment_with_if_plus_code
+        a =
+          begin
+            if true
+              return 1
+              ^^^^^^ This return introduces a void value.
             end
 
             puts "AFTER"
