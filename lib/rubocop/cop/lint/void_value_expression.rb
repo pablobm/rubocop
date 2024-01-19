@@ -3,21 +3,23 @@
 module RuboCop
   module Cop
     module Lint
+      SKIPPABLE_STATEMENTS = %i[kwbegin if while begin rescue block].freeze
+      LIMIT_STATEMENTS = %i[def defs].freeze
+
       class VoidValueExpression < Base
         def on_return(return_node)
-          parent_node = return_node.ancestors
-            .take_while { |n| !%i(def defs).include?(n.type) }
-            .reject { |n| %i(kwbegin if while begin rescue block).include?(n.type) }
+          parent_node =
+            return_node
+            .ancestors
+            .take_while { |n| !LIMIT_STATEMENTS.include?(n.type) }
+            .reject { |n| SKIPPABLE_STATEMENTS.include?(n.type) }
             .first
 
           #pp parent_node
           return unless parent_node
-          return unless parent_node.value_used? || %i{lvasgn send}.include?(parent_node.type)
+          return unless parent_node.value_used? || %i[lvasgn send].include?(parent_node.type)
 
-          add_offense(
-            return_node.loc.keyword,
-            message: "This return introduces a void value."
-          )
+          add_offense(return_node.loc.keyword, message: 'This return introduces a void value.')
         end
       end
     end
