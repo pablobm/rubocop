@@ -3,7 +3,7 @@
 module RuboCop
   module Cop
     module Lint
-      SKIPPABLE_STATEMENTS = %i[kwbegin if while begin rescue block].freeze
+      SKIPPABLE_STATEMENTS = %i[kwbegin if while begin rescue block case when].freeze
       LIMIT_STATEMENTS = %i[def defs].freeze
 
       class VoidValueExpression < Base
@@ -15,7 +15,6 @@ module RuboCop
             .reject { |n| SKIPPABLE_STATEMENTS.include?(n.type) }
             .first
 
-          #pp parent_node
           return unless parent_node
           return unless parent_node.value_used? || %i[lvasgn send].include?(parent_node.type)
 

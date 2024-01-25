@@ -159,6 +159,62 @@ RSpec.describe RuboCop::Cop::Lint::VoidValueExpression, :config do
     end
   end
 
+  context 'case statement' do
+    it 'does not register an offense when a return appears in a case branch' do
+      expect_no_offenses(<<~RUBY)
+        def case_when_return
+          case foo
+          when 1
+            return
+          end
+        end
+      RUBY
+    end
+
+    it 'does not register an offense when a return appears in a rescue-able case statement' do
+      expect_no_offenses(<<~RUBY)
+        def case_with_rescue
+          case foo
+          when 1
+            return
+          end
+        rescue SomeException
+          handle_issue
+        end
+      RUBY
+    end
+
+    it 'registers an offense when a return introduces a void value into an expression' do
+      expect_offense(<<~RUBY)
+        def case_expression
+          1 +
+            case foo
+            when 1
+              return 1
+              ^^^^^^ This return introduces a void value.
+            else
+              2
+            end
+          end
+      RUBY
+    end
+
+    it 'registers an offense when a return introduces a void value into an assignment' do
+      expect_offense(<<~RUBY)
+        def case_assignment
+          bar =
+            case foo
+            when 1
+              return 1
+              ^^^^^^ This return introduces a void value.
+            else
+              2
+            end
+          end
+      RUBY
+    end
+  end
+
   context 'method definition' do
     it 'does not register an offense when a method definition is part of an expression' do
       expect_no_offenses(<<~RUBY)
