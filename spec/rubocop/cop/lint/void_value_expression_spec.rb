@@ -76,8 +76,16 @@ RSpec.describe RuboCop::Cop::Lint::VoidValueExpression, :config do
       expect_no_offenses(<<~RUBY)
         def return_within_block
           items.each do |item|
-            return item if item.returnable?
+            return item
           end
+        end
+      RUBY
+    end
+
+    it 'does not register an offense when the block returns but the method also returns a value' do
+      expect_no_offenses(<<~RUBY)
+        def return_within_block_and_query_method
+          a = list.fetch(1) { return }
         end
       RUBY
     end
