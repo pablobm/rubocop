@@ -298,8 +298,7 @@ RSpec.describe RuboCop::Cop::Lint::VoidValueExpression, :config do
     RUBY
   end
 
-  # I don't think this is avoidable.
-  pending 'does not register an offense when a return appears in a metaprogrammed method' do
+  it 'does not register an offense when a return appears in a metaprogrammed method' do
     expect_no_offenses(<<~RUBY)
       def metaprogrammed_module
         my_module = Module.new {
