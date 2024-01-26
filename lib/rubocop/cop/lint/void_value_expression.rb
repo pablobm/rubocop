@@ -3,8 +3,8 @@
 module RuboCop
   module Cop
     module Lint
-      SKIPPABLE_STATEMENTS = %i[kwbegin if while begin rescue resbody].freeze
-      LIMIT_STATEMENTS = %i[def defs block case when].freeze
+      SKIPPABLE_STATEMENTS = %i[kwbegin if while begin rescue ensure resbody].freeze
+      LIMIT_STATEMENTS = %i[def defs block case when case_match in_pattern].freeze
 
       class VoidValueExpression < Base
         def on_return(return_node)

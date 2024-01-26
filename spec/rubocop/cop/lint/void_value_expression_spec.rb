@@ -148,6 +148,45 @@ RSpec.describe RuboCop::Cop::Lint::VoidValueExpression, :config do
         end
       RUBY
     end
+
+    it 'does not register an offense when a return appears in a ensure block without introducing a void value' do
+      expect_no_offenses(<<~RUBY)
+        def perfectly_normal_method
+          begin
+            do_something
+          ensure
+            return 1
+          end
+        end
+      RUBY
+    end
+
+    it 'registers an offense when a void assignment takes place in a ensure block' do
+      expect_offense(<<~RUBY)
+        def void_assignment_in_ensure
+          begin
+            do_something
+          ensure
+            a = return 1
+                ^^^^^^ This return introduces a void value.
+          end
+        end
+      RUBY
+    end
+
+    it 'registers an offense when a ensure block returns but a value was expected' do
+      expect_offense(<<~RUBY)
+        def ensure_assigns_a_void
+          a =
+            begin
+              do_something
+            ensure
+              return 1
+              ^^^^^^ This return introduces a void value.
+            end
+        end
+      RUBY
+    end
   end
 
   context 'conditional' do
@@ -198,19 +237,21 @@ RSpec.describe RuboCop::Cop::Lint::VoidValueExpression, :config do
     end
   end
 
-  context 'case statement' do
-    it 'does not register an offense when a return appears in a case branch' do
+  context 'case/when statement' do
+    it 'does not register an offense when a return appears in a when branch' do
       expect_no_offenses(<<~RUBY)
         def case_when_return
           case foo
           when 1
+            return
+          else
             return
           end
         end
       RUBY
     end
 
-    it 'does not register an offense when a return appears in a rescue-able case statement' do
+    it 'does not register an offense when a return appears in a rescue-able when statement' do
       expect_no_offenses(<<~RUBY)
         def case_with_rescue
           case foo
@@ -245,6 +286,64 @@ RSpec.describe RuboCop::Cop::Lint::VoidValueExpression, :config do
           bar =
             case foo
             when 1
+              return 1
+            else
+              return 2
+            end
+          end
+      RUBY
+    end
+  end
+
+  context 'case/in statement' do
+    it 'does not register an offense when a return appears in a in branch' do
+      expect_no_offenses(<<~RUBY)
+        def case_when_return
+          case foo
+          in 1
+            return
+          else
+            return
+          end
+        end
+      RUBY
+    end
+
+    it 'does not register an offense when a return appears in a rescue-able when statement' do
+      expect_no_offenses(<<~RUBY)
+        def case_with_rescue
+          case foo
+          in 1
+            return
+          else
+            return
+          end
+        rescue SomeException
+          handle_issue
+        end
+      RUBY
+    end
+
+    it 'does not register an offense when a return introduces a void value into an expression' do
+      expect_no_offenses(<<~RUBY)
+        def case_expression
+          1 +
+            case foo
+            in 1
+              return 1
+            else
+              return 2
+            end
+          end
+      RUBY
+    end
+
+    it 'does not register an offense when a return introduces a void value into an assignment' do
+      expect_no_offenses(<<~RUBY)
+        def case_assignment
+          bar =
+            case foo
+            in 1
               return 1
             else
               return 2
