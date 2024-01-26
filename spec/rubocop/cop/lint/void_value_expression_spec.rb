@@ -69,6 +69,45 @@ RSpec.describe RuboCop::Cop::Lint::VoidValueExpression, :config do
         end
       RUBY
     end
+
+    it 'does not register an offense when a return appears in a rescue block without introducing a void value' do
+      expect_no_offenses(<<~RUBY)
+        def perfectly_normal_method
+          begin
+            do_something
+          rescue
+            return 1
+          end
+        end
+      RUBY
+    end
+
+    it 'registers an offense when a void assignment takes place in a rescue block' do
+      expect_offense(<<~RUBY)
+        def void_assignment_in_rescue
+          begin
+            do_something
+          rescue
+            a = return 1
+                ^^^^^^ This return introduces a void value.
+          end
+        end
+      RUBY
+    end
+
+    it 'registers an offense when a rescue block returns but a value was expected' do
+      expect_offense(<<~RUBY)
+        def rescue_assigns_a_void
+          a =
+            begin
+              do_something
+            rescue
+              return 1
+              ^^^^^^ This return introduces a void value.
+            end
+        end
+      RUBY
+    end
   end
 
   context 'block' do
