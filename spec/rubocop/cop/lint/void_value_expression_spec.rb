@@ -1,11 +1,52 @@
 # frozen_string_literal: true
 
 RSpec.describe RuboCop::Cop::Lint::VoidValueExpression, :config do
-  it 'registers an offense when a return appears where an expression is expected' do
+  it 'registers an offense when a return appears first in a control statement ("and")' do
     expect_offense(<<~RUBY)
-      def void_expression
+      def void_first_in_and
         return a and b
         ^^^^^^ This return introduces a void value.
+      end
+    RUBY
+  end
+
+  it 'registers an offense when a return appears first in a control statement ("or")' do
+    expect_offense(<<~RUBY)
+      def void_first_in_or
+        return a and b
+        ^^^^^^ This return introduces a void value.
+      end
+    RUBY
+  end
+
+  it 'does not register an offense when a return appears last in a control statement ("and")' do
+    expect_no_offenses(<<~RUBY)
+      def void_comes_last_in_and
+        circuit_breaker and return
+      end
+    RUBY
+  end
+
+  it 'does not register an offense when a return appears last in a control statement ("or")' do
+    expect_no_offenses(<<~RUBY)
+      def void_comes_last_in_or
+        check_condition or return
+      end
+    RUBY
+  end
+
+  it 'does not register an offense when a return appears in the middle of a longer control statement ("and")' do
+    expect_no_offenses(<<~RUBY)
+      def void_comes_in_long_control_statement_and
+        1 and return and 2
+      end
+    RUBY
+  end
+
+  it 'does not register an offense when a return appears in the middle of a longer control statement ("or")' do
+    expect_no_offenses(<<~RUBY)
+      def void_comes_in_long_control_statement_or
+        1 or return or 2
       end
     RUBY
   end
@@ -51,10 +92,11 @@ RSpec.describe RuboCop::Cop::Lint::VoidValueExpression, :config do
     it 'registers an offense when a return introduces a void value' do
       expect_offense(<<~RUBY)
         def void_assignment_within_begin
-          a =
+          a ||=
             begin
-              return 1
+              return 1 if foo
               ^^^^^^ This return introduces a void value.
+              blah
             end
         end
       RUBY
